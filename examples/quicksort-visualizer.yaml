@@ -1,0 +1,8 @@
+id: quicksort-visualizer
+title: Quicksort Visualizer
+prompt: |
+  Create a single-page quicksort algorithm visualizer in a single HTML file with inline CSS and JavaScript. Dark theme with a gradient title. Display an array as vertical bars in a chart. Include controls for array size, animation speed, start, and reset. Animate each step of the quicksort algorithm: highlight the pivot in amber, elements being compared in pink, swaps in red, and sorted elements in green. Show a status message describing the current operation (e.g., "Comparing 23 with pivot 42"). Display running counts of comparisons and swaps. Include a color legend. Responsive layout, no external dependencies.
+screenshot_url: https://cdn.openai.com/devhub/gpt5prompts/quicksort-visualizer.png
+tags:
+  - interactive
+  - tool
