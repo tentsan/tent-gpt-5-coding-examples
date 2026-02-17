@@ -64,15 +64,15 @@
   .btn-reset{background:#1e293b;color:#cbd5e1;border:1px solid #334155}
   .btn-reset:hover{background:#334155}
   .chart-container{
-    flex:1;
     width:100%;
     max-width:900px;
+    height:400px;
+    min-height:300px;
     display:flex;
     align-items:flex-end;
     justify-content:center;
     gap:2px;
     padding:16px 0;
-    min-height:300px;
   }
   .bar{
     flex:1;
@@ -210,10 +210,11 @@
     chart.innerHTML = '';
     bars = [];
     const maxVal = 100;
+    const containerH = chart.clientHeight;
     arr.forEach((val) => {
       const bar = document.createElement('div');
       bar.className = 'bar default';
-      bar.style.height = (val / maxVal * 100) + '%';
+      bar.style.height = Math.max(2, (val / maxVal) * containerH) + 'px';
       chart.appendChild(bar);
       bars.push(bar);
     });
@@ -227,7 +228,8 @@
 
   function updateBar(idx){
     if(bars[idx]){
-      bars[idx].style.height = (arr[idx] / 100 * 100) + '%';
+      const containerH = chart.clientHeight;
+      bars[idx].style.height = Math.max(2, (arr[idx] / 100) * containerH) + 'px';
     }
   }
 
