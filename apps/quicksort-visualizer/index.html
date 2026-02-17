@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quicksort Visualizer</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:#0f1117;
+    color:#e2e8f0;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:24px 16px;
+  }
+  h1{
+    font-size:1.6rem;
+    font-weight:700;
+    margin-bottom:4px;
+    background:linear-gradient(135deg,#60a5fa,#a78bfa);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
+  }
+  .subtitle{
+    font-size:.85rem;
+    color:#94a3b8;
+    margin-bottom:20px;
+  }
+  .controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    align-items:center;
+    justify-content:center;
+    margin-bottom:16px;
+  }
+  .controls label{
+    font-size:.8rem;
+    color:#94a3b8;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .controls input[type=range]{
+    width:100px;
+    accent-color:#60a5fa;
+  }
+  button{
+    padding:8px 20px;
+    border:none;
+    border-radius:8px;
+    font-size:.85rem;
+    font-weight:600;
+    cursor:pointer;
+    transition:all .15s;
+  }
+  button:active{transform:scale(.96)}
+  .btn-start{background:#3b82f6;color:#fff}
+  .btn-start:hover{background:#2563eb}
+  .btn-start:disabled{background:#334155;color:#64748b;cursor:not-allowed;transform:none}
+  .btn-reset{background:#1e293b;color:#cbd5e1;border:1px solid #334155}
+  .btn-reset:hover{background:#334155}
+  .chart-container{
+    flex:1;
+    width:100%;
+    max-width:900px;
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    gap:2px;
+    padding:16px 0;
+    min-height:300px;
+  }
+  .bar{
+    flex:1;
+    max-width:24px;
+    border-radius:3px 3px 0 0;
+    transition:height .08s ease,background .15s;
+    position:relative;
+  }
+  .bar.default{background:#334155}
+  .bar.pivot{background:#f59e0b}
+  .bar.comparing{background:#ec4899}
+  .bar.swapping{background:#ef4444}
+  .bar.sorted{background:#22c55e}
+  .bar.partition-done{background:#60a5fa}
+  .info-bar{
+    width:100%;
+    max-width:900px;
+    min-height:48px;
+    background:#1e293b;
+    border-radius:10px;
+    padding:12px 20px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:.85rem;
+    color:#94a3b8;
+    text-align:center;
+    line-height:1.4;
+    margin-bottom:8px;
+  }
+  .legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    justify-content:center;
+    margin-top:4px;
+    font-size:.75rem;
+    color:#94a3b8;
+  }
+  .legend span{
+    display:flex;
+    align-items:center;
+    gap:5px;
+  }
+  .legend .swatch{
+    width:12px;height:12px;
+    border-radius:3px;
+    display:inline-block;
+  }
+  .stats{
+    margin-top:12px;
+    font-size:.78rem;
+    color:#64748b;
+    display:flex;
+    gap:20px;
+    justify-content:center;
+  }
+</style>
+</head>
+<body>
+
+<h1>Quicksort Visualizer</h1>
+<p class="subtitle">Watch quicksort partition and conquer step by step</p>
+
+<div class="controls">
+  <label>Size
+    <input type="range" id="sizeSlider" min="10" max="80" value="30">
+    <span id="sizeVal">30</span>
+  </label>
+  <label>Speed
+    <input type="range" id="speedSlider" min="1" max="10" value="5">
+    <span id="speedVal">5</span>
+  </label>
+  <button class="btn-start" id="startBtn">Start</button>
+  <button class="btn-reset" id="resetBtn">Reset</button>
+</div>
+
+<div class="info-bar" id="info">Press <strong>&nbsp;Start&nbsp;</strong> to begin sorting</div>
+
+<div class="chart-container" id="chart"></div>
+
+<div class="legend">
+  <span><i class="swatch" style="background:#334155"></i> Unsorted</span>
+  <span><i class="swatch" style="background:#f59e0b"></i> Pivot</span>
+  <span><i class="swatch" style="background:#ec4899"></i> Comparing</span>
+  <span><i class="swatch" style="background:#ef4444"></i> Swap</span>
+  <span><i class="swatch" style="background:#22c55e"></i> Sorted</span>
+</div>
+
+<div class="stats">
+  <span>Comparisons: <strong id="compCount">0</strong></span>
+  <span>Swaps: <strong id="swapCount">0</strong></span>
+</div>
+
+<script>
+(function(){
+  const chart = document.getElementById('chart');
+  const info = document.getElementById('info');
+  const startBtn = document.getElementById('startBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const sizeSlider = document.getElementById('sizeSlider');
+  const speedSlider = document.getElementById('speedSlider');
+  const sizeVal = document.getElementById('sizeVal');
+  const speedVal = document.getElementById('speedVal');
+  const compCount = document.getElementById('compCount');
+  const swapCount = document.getElementById('swapCount');
+
+  let arr = [];
+  let bars = [];
+  let sorting = false;
+  let comparisons = 0;
+  let swaps = 0;
+  let cancelled = false;
+
+  function getDelay(){
+    const v = parseInt(speedSlider.value);
+    // speed 1 => 400ms, speed 10 => 10ms
+    return Math.round(420 - v * 42);
+  }
+
+  function generateArray(){
+    const n = parseInt(sizeSlider.value);
+    arr = [];
+    for(let i = 0; i < n; i++){
+      arr.push(Math.floor(Math.random() * 95) + 5);
+    }
+    comparisons = 0;
+    swaps = 0;
+    compCount.textContent = '0';
+    swapCount.textContent = '0';
+    renderBars();
+  }
+
+  function renderBars(){
+    chart.innerHTML = '';
+    bars = [];
+    const maxVal = 100;
+    arr.forEach((val) => {
+      const bar = document.createElement('div');
+      bar.className = 'bar default';
+      bar.style.height = (val / maxVal * 100) + '%';
+      chart.appendChild(bar);
+      bars.push(bar);
+    });
+  }
+
+  function setBarState(idx, state){
+    if(bars[idx]){
+      bars[idx].className = 'bar ' + state;
+    }
+  }
+
+  function updateBar(idx){
+    if(bars[idx]){
+      bars[idx].style.height = (arr[idx] / 100 * 100) + '%';
+    }
+  }
+
+  function sleep(ms){
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  async function quicksort(lo, hi){
+    if(cancelled) return;
+    if(lo >= hi) {
+      if(lo === hi) setBarState(lo, 'sorted');
+      return;
+    }
+    const pivotIdx = await partition(lo, hi);
+    if(cancelled) return;
+    setBarState(pivotIdx, 'sorted');
+    await quicksort(lo, pivotIdx - 1);
+    await quicksort(pivotIdx + 1, hi);
+  }
+
+  async function partition(lo, hi){
+    const pivot = arr[hi];
+    setBarState(hi, 'pivot');
+    info.innerHTML = `Pivot: <strong>${pivot}</strong> (index ${hi}) — partitioning range [${lo}..${hi}]`;
+    await sleep(getDelay());
+
+    let i = lo - 1;
+    for(let j = lo; j < hi; j++){
+      if(cancelled) return lo;
+      setBarState(j, 'comparing');
+      comparisons++;
+      compCount.textContent = comparisons;
+      info.innerHTML = `Comparing <strong>${arr[j]}</strong> with pivot <strong>${pivot}</strong>`;
+      await sleep(getDelay());
+
+      if(arr[j] <= pivot){
+        i++;
+        if(i !== j){
+          setBarState(i, 'swapping');
+          setBarState(j, 'swapping');
+          info.innerHTML = `Swapping <strong>${arr[i]}</strong> and <strong>${arr[j]}</strong>`;
+          await sleep(getDelay());
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+          swaps++;
+          swapCount.textContent = swaps;
+          updateBar(i);
+          updateBar(j);
+        }
+        setBarState(i, 'default');
+      }
+      setBarState(j, 'default');
+    }
+
+    i++;
+    if(i !== hi){
+      setBarState(i, 'swapping');
+      setBarState(hi, 'swapping');
+      info.innerHTML = `Placing pivot <strong>${pivot}</strong> at index ${i}`;
+      await sleep(getDelay());
+      [arr[i], arr[hi]] = [arr[hi], arr[i]];
+      swaps++;
+      swapCount.textContent = swaps;
+      updateBar(i);
+      updateBar(hi);
+    }
+
+    // reset colors in partition range except sorted
+    for(let k = lo; k <= hi; k++){
+      if(bars[k].className !== 'bar sorted'){
+        setBarState(k, 'default');
+      }
+    }
+
+    return i;
+  }
+
+  async function run(){
+    sorting = true;
+    cancelled = false;
+    startBtn.disabled = true;
+    sizeSlider.disabled = true;
+    await quicksort(0, arr.length - 1);
+    if(!cancelled){
+      // mark all sorted
+      for(let i = 0; i < bars.length; i++) setBarState(i, 'sorted');
+      info.innerHTML = `Sorted! <strong>${comparisons}</strong> comparisons, <strong>${swaps}</strong> swaps`;
+    }
+    sorting = false;
+    startBtn.disabled = false;
+    sizeSlider.disabled = false;
+  }
+
+  function reset(){
+    cancelled = true;
+    sorting = false;
+    startBtn.disabled = false;
+    sizeSlider.disabled = false;
+    info.innerHTML = 'Press <strong>&nbsp;Start&nbsp;</strong> to begin sorting';
+    generateArray();
+  }
+
+  sizeSlider.addEventListener('input', () => {
+    sizeVal.textContent = sizeSlider.value;
+    if(!sorting) generateArray();
+  });
+  speedSlider.addEventListener('input', () => {
+    speedVal.textContent = speedSlider.value;
+  });
+  startBtn.addEventListener('click', () => {
+    if(!sorting) run();
+  });
+  resetBtn.addEventListener('click', reset);
+
+  generateArray();
+})();
+</script>
+</body>
+</html>
